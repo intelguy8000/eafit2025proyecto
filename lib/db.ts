@@ -1,0 +1,435 @@
+import { neon } from "@neondatabase/serverless";
+
+const connectionString = process.env.STORAGE_DATABASE_URL;
+
+if (!connectionString) {
+  throw new Error("STORAGE_DATABASE_URL is not set");
+}
+
+export const sql = neon(connectionString);
+
+// =============================================================================
+// DATABASE TYPES
+// =============================================================================
+
+export interface DBStore {
+  store: number;
+  type: string;
+  size: number;
+}
+
+export interface DBSale {
+  store: number;
+  dept: number;
+  date: string;
+  weekly_sales: number;
+  is_holiday: boolean;
+}
+
+export interface DBFeature {
+  store: number;
+  date: string;
+  temperature: number;
+  fuel_price: number;
+  cpi: number;
+  unemployment: number;
+  is_holiday: boolean;
+}
+
+// =============================================================================
+// CREATE TABLES
+// =============================================================================
+
+export async function createTables() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS stores (
+      store INT PRIMARY KEY,
+      type VARCHAR(1) NOT NULL,
+      size INT NOT NULL
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS sales (
+      id SERIAL PRIMARY KEY,
+      store INT NOT NULL,
+      dept INT NOT NULL,
+      date DATE NOT NULL,
+      weekly_sales DECIMAL(15,2) NOT NULL,
+      is_holiday BOOLEAN NOT NULL DEFAULT FALSE
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS features (
+      id SERIAL PRIMARY KEY,
+      store INT NOT NULL,
+      date DATE NOT NULL,
+      temperature DECIMAL(10,2),
+      fuel_price DECIMAL(10,3),
+      cpi DECIMAL(15,6),
+      unemployment DECIMAL(10,3),
+      is_holiday BOOLEAN NOT NULL DEFAULT FALSE
+    )
+  `;
+
+  // Create indexes for performance
+  await sql`CREATE INDEX IF NOT EXISTS idx_sales_store ON sales(store)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_sales_dept ON sales(dept)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(date)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_features_store ON features(store)`;
+  await sql`CREATE INDEX IF NOT EXISTS idx_features_date ON features(date)`;
+
+  console.log("Tables created successfully");
+}
+
+// =============================================================================
+// QUERY FUNCTIONS
+// =============================================================================
+
+export async function getStores(): Promise<DBStore[]> {
+  const result = await sql`SELECT store, type, size FROM stores ORDER BY store`;
+  return result as DBStore[];
+}
+
+export async function getSalesData(): Promise<DBSale[]> {
+  const result = await sql`
+    SELECT store, dept, date::text, weekly_sales, is_holiday
+    FROM sales
+    ORDER BY date, store, dept
+  `;
+  return result as DBSale[];
+}
+
+export async function getFeaturesData(): Promise<DBFeature[]> {
+  const result = await sql`
+    SELECT store, date::text, temperature, fuel_price, cpi, unemployment, is_holiday
+    FROM features
+    ORDER BY date, store
+  `;
+  return result as DBFeature[];
+}
+
+// =============================================================================
+// AGGREGATED QUERIES (for performance)
+// =============================================================================
+
+export async function getKPIs() {
+  const result = await sql`
+    SELECT
+      SUM(weekly_sales) as total_sales,
+      COUNT(*) as total_transactions,
+      COUNT(DISTINCT store) as unique_stores,
+      COUNT(DISTINCT dept) as unique_departments,
+      MIN(date)::text as start_date,
+      MAX(date)::text as end_date
+    FROM sales
+  `;
+  return result[0];
+}
+
+export async function getWeeklyAggregations() {
+  const result = await sql`
+    SELECT
+      date::text as date,
+      SUM(weekly_sales) as total_sales,
+      COUNT(DISTINCT store) as store_count,
+      MAX(is_holiday::int)::boolean as is_holiday
+    FROM sales
+    GROUP BY date
+    ORDER BY date
+  `;
+  return result;
+}
+
+export async function getStoreAggregations() {
+  const result = await sql`
+    SELECT
+      s.store,
+      st.type,
+      st.size,
+      SUM(s.weekly_sales) as total_sales,
+      AVG(s.weekly_sales) as avg_weekly_sales,
+      COUNT(*) as transaction_count,
+      STDDEV(s.weekly_sales) / NULLIF(AVG(s.weekly_sales), 0) * 100 as volatility,
+      array_agg(DISTINCT s.dept ORDER BY s.dept) as departments
+    FROM sales s
+    LEFT JOIN stores st ON s.store = st.store
+    GROUP BY s.store, st.type, st.size
+    ORDER BY total_sales DESC
+  `;
+  return result;
+}
+
+export async function getDepartmentAggregations() {
+  const result = await sql`
+    SELECT
+      dept,
+      SUM(weekly_sales) as total_sales,
+      AVG(weekly_sales) as avg_weekly_sales,
+      COUNT(*) as transaction_count,
+      COUNT(DISTINCT store) as store_count
+    FROM sales
+    GROUP BY dept
+    ORDER BY total_sales DESC
+  `;
+  return result;
+}
+
+export async function getHolidayImpact() {
+  const result = await sql`
+    SELECT
+      is_holiday,
+      SUM(weekly_sales) as total_sales,
+      COUNT(*) as count,
+      AVG(weekly_sales) as avg_sales
+    FROM sales
+    GROUP BY is_holiday
+  `;
+  return result;
+}
+
+export async function getWeeklyWithFeatures() {
+  const result = await sql`
+    SELECT
+      s.date::text as date,
+      SUM(s.weekly_sales) as total_sales,
+      AVG(f.temperature) as avg_temperature,
+      AVG(f.fuel_price) as avg_fuel_price,
+      AVG(f.unemployment) as avg_unemployment,
+      AVG(f.cpi) as avg_cpi,
+      MAX(s.is_holiday::int)::boolean as is_holiday
+    FROM sales s
+    LEFT JOIN features f ON s.store = f.store AND s.date = f.date
+    GROUP BY s.date
+    ORDER BY s.date
+  `;
+  return result;
+}
+
+export async function getStoreTypePerformance() {
+  const result = await sql`
+    SELECT
+      st.type,
+      COUNT(DISTINCT s.store) as store_count,
+      SUM(s.weekly_sales) as total_sales,
+      AVG(st.size) as avg_size,
+      AVG(sub.volatility) as avg_volatility
+    FROM sales s
+    JOIN stores st ON s.store = st.store
+    LEFT JOIN (
+      SELECT
+        store,
+        STDDEV(weekly_sales) / NULLIF(AVG(weekly_sales), 0) * 100 as volatility
+      FROM sales
+      GROUP BY store
+    ) sub ON s.store = sub.store
+    GROUP BY st.type
+    ORDER BY total_sales DESC
+  `;
+  return result;
+}
+
+export async function getTopWeeks(limit: number = 5) {
+  const result = await sql`
+    SELECT
+      date::text as date,
+      SUM(weekly_sales) as total_sales,
+      MAX(is_holiday::int)::boolean as is_holiday
+    FROM sales
+    GROUP BY date
+    ORDER BY total_sales DESC
+    LIMIT ${limit}
+  `;
+  return result;
+}
+
+export async function getMonthlySales() {
+  const monthNames = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  const result = await sql`
+    SELECT
+      EXTRACT(MONTH FROM date)::int as month,
+      SUM(weekly_sales) as total_sales,
+      AVG(weekly_sales) as avg_sales,
+      COUNT(*) as week_count
+    FROM (
+      SELECT date, SUM(weekly_sales) as weekly_sales
+      FROM sales
+      GROUP BY date
+    ) weekly
+    GROUP BY EXTRACT(MONTH FROM date)
+    ORDER BY month
+  `;
+  return result.map((r) => ({
+    month: r.month,
+    monthName: monthNames[r.month - 1],
+    totalSales: r.total_sales,
+    avgSales: r.avg_sales,
+    weekCount: r.week_count,
+  }));
+}
+
+export async function getStoreVolatility() {
+  const result = await sql`
+    SELECT
+      s.store,
+      st.type,
+      AVG(s.weekly_sales) as mean,
+      STDDEV(s.weekly_sales) as std_dev,
+      STDDEV(s.weekly_sales) / NULLIF(AVG(s.weekly_sales), 0) * 100 as coefficient_of_variation
+    FROM sales s
+    LEFT JOIN stores st ON s.store = st.store
+    GROUP BY s.store, st.type
+    ORDER BY coefficient_of_variation DESC
+  `;
+  return result.map((r) => ({
+    store: r.store,
+    type: r.type,
+    mean: r.mean,
+    stdDev: r.std_dev,
+    coefficientOfVariation: r.coefficient_of_variation,
+    risk: r.coefficient_of_variation < 30 ? "low" : r.coefficient_of_variation < 50 ? "medium" : "high",
+  }));
+}
+
+// Anomaly detection using IQR method in SQL
+export async function getAnomalies() {
+  const result = await sql`
+    WITH store_dept_stats AS (
+      SELECT
+        store,
+        dept,
+        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY weekly_sales) as q1,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY weekly_sales) as median,
+        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY weekly_sales) as q3,
+        COUNT(*) as cnt
+      FROM sales
+      GROUP BY store, dept
+      HAVING COUNT(*) >= 10
+    ),
+    bounds AS (
+      SELECT
+        store,
+        dept,
+        q1,
+        median,
+        q3,
+        q3 - q1 as iqr,
+        q1 - 1.5 * (q3 - q1) as lower_bound,
+        q3 + 1.5 * (q3 - q1) as upper_bound
+      FROM store_dept_stats
+    )
+    SELECT
+      s.store,
+      s.dept,
+      s.date::text as date,
+      s.weekly_sales as sales,
+      CASE
+        WHEN s.weekly_sales < b.lower_bound THEN 'low'
+        WHEN s.weekly_sales > b.upper_bound THEN 'high'
+      END as type,
+      CASE
+        WHEN s.weekly_sales < b.lower_bound THEN (b.median - s.weekly_sales) / NULLIF(b.iqr, 0)
+        WHEN s.weekly_sales > b.upper_bound THEN (s.weekly_sales - b.median) / NULLIF(b.iqr, 0)
+      END as deviation
+    FROM sales s
+    JOIN bounds b ON s.store = b.store AND s.dept = b.dept
+    WHERE s.weekly_sales < b.lower_bound OR s.weekly_sales > b.upper_bound
+    ORDER BY deviation DESC
+    LIMIT 100
+  `;
+  return result;
+}
+
+export async function getWeeklyWithAnomalies() {
+  const result = await sql`
+    WITH anomalies AS (
+      SELECT
+        date,
+        COUNT(*) as anomaly_count,
+        SUM(CASE WHEN type = 'high' THEN 1 ELSE 0 END) as high_count,
+        SUM(CASE WHEN type = 'low' THEN 1 ELSE 0 END) as low_count
+      FROM (
+        WITH store_dept_stats AS (
+          SELECT
+            store,
+            dept,
+            PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY weekly_sales) as q1,
+            PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY weekly_sales) as q3,
+            COUNT(*) as cnt
+          FROM sales
+          GROUP BY store, dept
+          HAVING COUNT(*) >= 10
+        ),
+        bounds AS (
+          SELECT
+            store,
+            dept,
+            q1 - 1.5 * (q3 - q1) as lower_bound,
+            q3 + 1.5 * (q3 - q1) as upper_bound
+          FROM store_dept_stats
+        )
+        SELECT
+          s.date,
+          CASE
+            WHEN s.weekly_sales < b.lower_bound THEN 'low'
+            WHEN s.weekly_sales > b.upper_bound THEN 'high'
+          END as type
+        FROM sales s
+        JOIN bounds b ON s.store = b.store AND s.dept = b.dept
+        WHERE s.weekly_sales < b.lower_bound OR s.weekly_sales > b.upper_bound
+      ) sub
+      GROUP BY date
+    )
+    SELECT
+      s.date::text as date,
+      SUM(s.weekly_sales) as total_sales,
+      COALESCE(a.anomaly_count, 0) > 5 as is_anomaly,
+      CASE
+        WHEN COALESCE(a.high_count, 0) > COALESCE(a.low_count, 0) THEN 'high'
+        WHEN COALESCE(a.low_count, 0) > 0 THEN 'low'
+        ELSE NULL
+      END as anomaly_type,
+      COALESCE(a.anomaly_count, 0)::int as anomaly_count
+    FROM sales s
+    LEFT JOIN anomalies a ON s.date = a.date
+    GROUP BY s.date, a.anomaly_count, a.high_count, a.low_count
+    ORDER BY s.date
+  `;
+  return result;
+}
+
+export async function getWeekOverWeekAlerts(threshold: number = -20) {
+  const result = await sql`
+    WITH store_weekly AS (
+      SELECT
+        store,
+        date,
+        SUM(weekly_sales) as total_sales
+      FROM sales
+      GROUP BY store, date
+    ),
+    with_lag AS (
+      SELECT
+        store,
+        date::text as date,
+        total_sales as current_sales,
+        LAG(date) OVER (PARTITION BY store ORDER BY date)::text as previous_date,
+        LAG(total_sales) OVER (PARTITION BY store ORDER BY date) as previous_sales
+      FROM store_weekly
+    )
+    SELECT
+      store,
+      date,
+      previous_date,
+      current_sales,
+      previous_sales,
+      ((current_sales - previous_sales) / NULLIF(previous_sales, 0) * 100) as change_percent
+    FROM with_lag
+    WHERE previous_sales > 0
+      AND ((current_sales - previous_sales) / NULLIF(previous_sales, 0) * 100) <= ${threshold}
+    ORDER BY change_percent
+    LIMIT 30
+  `;
+  return result;
+}
