@@ -24,6 +24,11 @@ export async function GET() {
       anomalies: data.anomalies.slice(0, 50), // Top 50 anomalies
       volatility: data.volatility,
       stores: data.stores,
+      // Operational data
+      weeklyWithFeatures: data.weeklyWithFeatures,
+      storeTypePerformance: data.storeTypePerformance,
+      topWeeks: data.topWeeks,
+      monthlySales: data.monthlySales,
     });
   } catch (error) {
     console.error("Error loading data:", error);

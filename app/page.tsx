@@ -3,11 +3,16 @@
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
 import { Scorecard } from "@/components/Scorecard";
+import { Tabs } from "@/components/Tabs";
 import {
   SalesAreaChart,
   TopStoresChart,
   DepartmentPieChart,
   HolidayComparisonChart,
+  SalesTemperatureChart,
+  SalesFuelChart,
+  UnemploymentScatterChart,
+  SeasonalityChart,
 } from "@/components/charts";
 import {
   DollarSign,
@@ -15,6 +20,12 @@ import {
   Calendar,
   AlertTriangle,
   Loader2,
+  BarChart3,
+  Settings,
+  Thermometer,
+  Fuel,
+  Store,
+  Trophy,
 } from "lucide-react";
 import {
   KPIs,
@@ -22,6 +33,10 @@ import {
   DepartmentAggregation,
   WeeklyAggregation,
   StoreVolatility,
+  WeeklyWithFeatures,
+  StoreTypePerformance,
+  TopWeek,
+  MonthlySales,
   formatCurrency,
   formatNumber,
 } from "@/lib/data";
@@ -32,12 +47,17 @@ interface DashboardData {
   departmentAggregations: DepartmentAggregation[];
   weeklyAggregations: WeeklyAggregation[];
   volatility: StoreVolatility[];
+  weeklyWithFeatures: WeeklyWithFeatures[];
+  storeTypePerformance: StoreTypePerformance[];
+  topWeeks: TopWeek[];
+  monthlySales: MonthlySales[];
 }
 
 export default function Home() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("financiero");
 
   useEffect(() => {
     async function loadData() {
@@ -101,109 +121,300 @@ export default function Home() {
 
   if (!data) return null;
 
-  const { kpis, storeAggregations, departmentAggregations, weeklyAggregations, volatility } = data;
+  const {
+    kpis,
+    storeAggregations,
+    departmentAggregations,
+    weeklyAggregations,
+    volatility,
+    weeklyWithFeatures,
+    storeTypePerformance,
+    topWeeks,
+    monthlySales,
+  } = data;
+
   const highRiskStores = volatility.filter((v) => v.risk === "high").length;
+
+  const tabs = [
+    { id: "financiero", label: "Financiero", icon: <BarChart3 className="w-4 h-4" /> },
+    { id: "operativo", label: "Operativo", icon: <Settings className="w-4 h-4" /> },
+  ];
 
   return (
     <div className="min-h-screen bg-bg-page">
       <Header />
 
       <main className="p-6">
-        {/* KPI Scorecards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <Scorecard
-            title="Ventas Totales"
-            value={formatCurrency(kpis.totalSales)}
-            subtitle={`${kpis.dateRange.start} - ${kpis.dateRange.end}`}
-            icon={DollarSign}
-            variant="blue"
-          />
-          <Scorecard
-            title="Promedio Semanal"
-            value={formatCurrency(kpis.weeklyAverage)}
-            subtitle={`${formatNumber(kpis.totalTransactions)} registros`}
-            icon={TrendingUp}
-            variant="lavender"
-          />
-          <Scorecard
-            title="Impacto Festivos"
-            value={`${kpis.holidayImpact.percentageDiff >= 0 ? "+" : ""}${kpis.holidayImpact.percentageDiff.toFixed(1)}%`}
-            subtitle="vs semanas normales"
-            icon={Calendar}
-            variant="green"
-            trend={{
-              value: kpis.holidayImpact.percentageDiff,
-              isPositive: kpis.holidayImpact.percentageDiff > 0,
-            }}
-          />
-          <Scorecard
-            title="Tiendas en Riesgo"
-            value={highRiskStores}
-            subtitle={`de ${kpis.uniqueStores} tiendas (alta volatilidad)`}
-            icon={AlertTriangle}
-            variant="coral"
-          />
+        {/* Tabs */}
+        <div className="mb-6">
+          <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
 
-        {/* Main Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Tendencia de Ventas Semanal
-            </h3>
-            <p className="text-xs text-text-muted mb-4">
-              Las barras verdes indican semanas festivas
-            </p>
-            <SalesAreaChart data={weeklyAggregations} />
-          </div>
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Top 10 Tiendas por Ventas
-            </h3>
-            <p className="text-xs text-text-muted mb-4">
-              Color por tipo: A (azul), B (gris), C (lavanda)
-            </p>
-            <TopStoresChart data={storeAggregations} />
-          </div>
-        </div>
+        {activeTab === "financiero" && (
+          <>
+            {/* KPI Scorecards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <Scorecard
+                title="Ventas Totales"
+                value={formatCurrency(kpis.totalSales)}
+                subtitle={`${kpis.dateRange.start} - ${kpis.dateRange.end}`}
+                icon={DollarSign}
+                variant="blue"
+              />
+              <Scorecard
+                title="Promedio Semanal"
+                value={formatCurrency(kpis.weeklyAverage)}
+                subtitle={`${formatNumber(kpis.totalTransactions)} registros`}
+                icon={TrendingUp}
+                variant="lavender"
+              />
+              <Scorecard
+                title="Impacto Festivos"
+                value={`${kpis.holidayImpact.percentageDiff >= 0 ? "+" : ""}${kpis.holidayImpact.percentageDiff.toFixed(1)}%`}
+                subtitle="vs semanas normales"
+                icon={Calendar}
+                variant="green"
+                trend={{
+                  value: kpis.holidayImpact.percentageDiff,
+                  isPositive: kpis.holidayImpact.percentageDiff > 0,
+                }}
+              />
+              <Scorecard
+                title="Tiendas en Riesgo"
+                value={highRiskStores}
+                subtitle={`de ${kpis.uniqueStores} tiendas (alta volatilidad)`}
+                icon={AlertTriangle}
+                variant="coral"
+              />
+            </div>
 
-        {/* Secondary Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Ventas por Departamento
-            </h3>
-            <p className="text-xs text-text-muted mb-4">
-              Top 8 departamentos + otros
-            </p>
-            <DepartmentPieChart data={departmentAggregations} />
-          </div>
-          <div className="card p-6">
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              Festivos vs Semanas Normales
-            </h3>
-            <p className="text-xs text-text-muted mb-4">
-              Promedio de ventas por tipo de semana
-            </p>
-            <HolidayComparisonChart data={weeklyAggregations} />
-          </div>
-        </div>
+            {/* Main Charts Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">
+                  Tendencia de Ventas Semanal
+                </h3>
+                <p className="text-xs text-text-muted mb-4">
+                  Las barras verdes indican semanas festivas
+                </p>
+                <SalesAreaChart data={weeklyAggregations} />
+              </div>
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">
+                  Top 10 Tiendas por Ventas
+                </h3>
+                <p className="text-xs text-text-muted mb-4">
+                  Color por tipo: A (azul), B (gris), C (lavanda)
+                </p>
+                <TopStoresChart data={storeAggregations} />
+              </div>
+            </div>
 
-        {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="card p-4">
-            <p className="text-sm text-text-muted">Tiendas Analizadas</p>
-            <p className="text-2xl font-bold text-text-primary">{kpis.uniqueStores}</p>
-          </div>
-          <div className="card p-4">
-            <p className="text-sm text-text-muted">Departamentos</p>
-            <p className="text-2xl font-bold text-text-primary">{kpis.uniqueDepartments}</p>
-          </div>
-          <div className="card p-4">
-            <p className="text-sm text-text-muted">Total Markdowns</p>
-            <p className="text-2xl font-bold text-text-primary">{formatCurrency(kpis.totalMarkdown)}</p>
-          </div>
-        </div>
+            {/* Secondary Charts Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">
+                  Ventas por Departamento
+                </h3>
+                <p className="text-xs text-text-muted mb-4">
+                  Top 8 departamentos + otros
+                </p>
+                <DepartmentPieChart data={departmentAggregations} />
+              </div>
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">
+                  Festivos vs Semanas Normales
+                </h3>
+                <p className="text-xs text-text-muted mb-4">
+                  Promedio de ventas por tipo de semana
+                </p>
+                <HolidayComparisonChart data={weeklyAggregations} />
+              </div>
+            </div>
+
+            {/* Summary Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="card p-4">
+                <p className="text-sm text-text-muted">Tiendas Analizadas</p>
+                <p className="text-2xl font-bold text-text-primary">{kpis.uniqueStores}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-sm text-text-muted">Departamentos</p>
+                <p className="text-2xl font-bold text-text-primary">{kpis.uniqueDepartments}</p>
+              </div>
+              <div className="card p-4">
+                <p className="text-sm text-text-muted">Total Markdowns</p>
+                <p className="text-2xl font-bold text-text-primary">{formatCurrency(kpis.totalMarkdown)}</p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === "operativo" && (
+          <>
+            {/* Store Type Performance Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {storeTypePerformance.map((perf) => (
+                <div
+                  key={perf.type}
+                  className={`card p-5 border-l-4 ${
+                    perf.type === "A"
+                      ? "border-l-[#7B9ACC]"
+                      : perf.type === "B"
+                      ? "border-l-[#B8C5D6]"
+                      : "border-l-[#E8D5F2]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Store className="w-5 h-5 text-text-muted" />
+                      <span className="text-lg font-semibold text-text-primary">
+                        Tipo {perf.type}
+                      </span>
+                    </div>
+                    <span className="text-xs bg-secondary/30 px-2 py-1 rounded text-text-muted">
+                      {perf.storeCount} tiendas
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-text-muted">Ventas totales</span>
+                      <span className="text-sm font-medium text-text-primary">
+                        {formatCurrency(perf.totalSales)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-text-muted">Promedio/tienda</span>
+                      <span className="text-sm font-medium text-text-primary">
+                        {formatCurrency(perf.avgSalesPerStore)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-text-muted">Tamaño prom.</span>
+                      <span className="text-sm font-medium text-text-primary">
+                        {formatNumber(perf.avgSize)} sqft
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-text-muted">Volatilidad</span>
+                      <span
+                        className={`text-sm font-medium ${
+                          perf.avgVolatility > 50
+                            ? "text-scorecard-coral-text"
+                            : perf.avgVolatility > 30
+                            ? "text-scorecard-lavender-text"
+                            : "text-scorecard-green-text"
+                        }`}
+                      >
+                        {perf.avgVolatility.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* External Factors Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="card p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Thermometer className="w-5 h-5 text-scorecard-coral-text" />
+                  <h3 className="text-lg font-semibold text-text-primary">
+                    Ventas vs Temperatura
+                  </h3>
+                </div>
+                <p className="text-xs text-text-muted mb-4">
+                  Correlación entre temperatura promedio y ventas semanales
+                </p>
+                <SalesTemperatureChart data={weeklyWithFeatures} />
+              </div>
+              <div className="card p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Fuel className="w-5 h-5 text-scorecard-lavender-text" />
+                  <h3 className="text-lg font-semibold text-text-primary">
+                    Ventas vs Precio Gasolina
+                  </h3>
+                </div>
+                <p className="text-xs text-text-muted mb-4">
+                  Impacto del precio del combustible en las ventas
+                </p>
+                <SalesFuelChart data={weeklyWithFeatures} />
+              </div>
+            </div>
+
+            {/* Unemployment and Seasonality */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">
+                  Impacto del Desempleo
+                </h3>
+                <p className="text-xs text-text-muted mb-4">
+                  Dispersión de ventas por tasa de desempleo (diamantes = festivos)
+                </p>
+                <UnemploymentScatterChart data={weeklyWithFeatures} />
+              </div>
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">
+                  Estacionalidad Mensual
+                </h3>
+                <p className="text-xs text-text-muted mb-4">
+                  Promedio de ventas semanales por mes del año
+                </p>
+                <SeasonalityChart data={monthlySales} />
+              </div>
+            </div>
+
+            {/* Top 5 Weeks */}
+            <div className="card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Trophy className="w-5 h-5 text-scorecard-green-text" />
+                <h3 className="text-lg font-semibold text-text-primary">
+                  Top 5 Semanas con Mayor Ventas
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-4 text-sm font-medium text-text-muted">Rank</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-text-muted">Fecha</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-text-muted">Ventas Totales</th>
+                      <th className="text-left py-3 px-4 text-sm font-medium text-text-muted">Tipo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {topWeeks.map((week) => (
+                      <tr key={week.date} className="border-b border-border/50 hover:bg-secondary/10">
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-scorecard-blue-bg text-scorecard-blue-text text-sm font-medium">
+                            {week.rank}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-sm text-text-primary font-medium">
+                          {week.date}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-text-primary">
+                          {formatCurrency(week.totalSales)}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span
+                            className={`text-xs px-2 py-1 rounded ${
+                              week.isHoliday
+                                ? "bg-scorecard-green-bg text-scorecard-green-text"
+                                : "bg-secondary/30 text-text-muted"
+                            }`}
+                          >
+                            {week.isHoliday ? "Festivo" : "Normal"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );

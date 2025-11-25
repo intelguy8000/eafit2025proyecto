@@ -534,6 +534,189 @@ export function formatPercentage(value: number, decimals: number = 1): string {
 }
 
 // =============================================================================
+// OPERATIONAL ANALYTICS
+// =============================================================================
+
+export interface WeeklyWithFeatures {
+  date: string;
+  totalSales: number;
+  avgTemperature: number;
+  avgFuelPrice: number;
+  avgUnemployment: number;
+  avgCPI: number;
+  isHoliday: boolean;
+}
+
+export interface StoreTypePerformance {
+  type: "A" | "B" | "C";
+  storeCount: number;
+  totalSales: number;
+  avgSalesPerStore: number;
+  avgSize: number;
+  avgVolatility: number;
+}
+
+export interface TopWeek {
+  date: string;
+  totalSales: number;
+  isHoliday: boolean;
+  rank: number;
+}
+
+export interface MonthlySales {
+  month: number;
+  monthName: string;
+  avgSales: number;
+  totalSales: number;
+  weekCount: number;
+}
+
+export function aggregateWeeklyWithFeatures(
+  trainData: TrainRecord[],
+  featuresData: FeatureRecord[]
+): WeeklyWithFeatures[] {
+  // Create a map of features by date (averaged across stores)
+  const featuresByDate = new Map<
+    string,
+    { temps: number[]; fuels: number[]; unemployments: number[]; cpis: number[]; isHoliday: boolean }
+  >();
+
+  featuresData.forEach((f) => {
+    if (!featuresByDate.has(f.Date)) {
+      featuresByDate.set(f.Date, {
+        temps: [],
+        fuels: [],
+        unemployments: [],
+        cpis: [],
+        isHoliday: f.IsHoliday,
+      });
+    }
+    const entry = featuresByDate.get(f.Date)!;
+    entry.temps.push(f.Temperature);
+    entry.fuels.push(f.Fuel_Price);
+    entry.unemployments.push(f.Unemployment);
+    entry.cpis.push(f.CPI);
+  });
+
+  // Aggregate sales by date
+  const salesByDate = new Map<string, number>();
+  trainData.forEach((t) => {
+    salesByDate.set(t.Date, (salesByDate.get(t.Date) || 0) + t.Weekly_Sales);
+  });
+
+  const result: WeeklyWithFeatures[] = [];
+
+  salesByDate.forEach((sales, date) => {
+    const features = featuresByDate.get(date);
+    if (features) {
+      const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length;
+      result.push({
+        date,
+        totalSales: sales,
+        avgTemperature: avg(features.temps),
+        avgFuelPrice: avg(features.fuels),
+        avgUnemployment: avg(features.unemployments),
+        avgCPI: avg(features.cpis),
+        isHoliday: features.isHoliday,
+      });
+    }
+  });
+
+  return result.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export function calculateStoreTypePerformance(
+  storeAggregations: StoreAggregation[],
+  storesData: StoreRecord[]
+): StoreTypePerformance[] {
+  const typeMap = new Map<"A" | "B" | "C", { stores: StoreAggregation[]; sizes: number[] }>();
+
+  storeAggregations.forEach((sa) => {
+    const storeInfo = storesData.find((s) => s.Store === sa.store);
+    const type = sa.type;
+    if (!typeMap.has(type)) {
+      typeMap.set(type, { stores: [], sizes: [] });
+    }
+    typeMap.get(type)!.stores.push(sa);
+    if (storeInfo) {
+      typeMap.get(type)!.sizes.push(storeInfo.Size);
+    }
+  });
+
+  const result: StoreTypePerformance[] = [];
+
+  (["A", "B", "C"] as const).forEach((type) => {
+    const data = typeMap.get(type);
+    if (data && data.stores.length > 0) {
+      const totalSales = data.stores.reduce((sum, s) => sum + s.totalSales, 0);
+      const avgVolatility =
+        data.stores.reduce((sum, s) => sum + s.volatility, 0) / data.stores.length;
+      const avgSize = data.sizes.length > 0
+        ? data.sizes.reduce((a, b) => a + b, 0) / data.sizes.length
+        : 0;
+
+      result.push({
+        type,
+        storeCount: data.stores.length,
+        totalSales,
+        avgSalesPerStore: totalSales / data.stores.length,
+        avgSize,
+        avgVolatility,
+      });
+    }
+  });
+
+  return result.sort((a, b) => b.totalSales - a.totalSales);
+}
+
+export function getTopWeeks(
+  weeklyAggregations: WeeklyAggregation[],
+  count: number = 5
+): TopWeek[] {
+  const sorted = [...weeklyAggregations].sort((a, b) => b.totalSales - a.totalSales);
+  return sorted.slice(0, count).map((w, i) => ({
+    date: w.date,
+    totalSales: w.totalSales,
+    isHoliday: w.isHoliday,
+    rank: i + 1,
+  }));
+}
+
+export function aggregateByMonth(weeklyAggregations: WeeklyAggregation[]): MonthlySales[] {
+  const monthNames = [
+    "Ene", "Feb", "Mar", "Abr", "May", "Jun",
+    "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"
+  ];
+
+  const monthlyData = new Map<number, { sales: number[]; total: number }>();
+
+  weeklyAggregations.forEach((w) => {
+    const date = new Date(w.date);
+    const month = date.getMonth();
+    if (!monthlyData.has(month)) {
+      monthlyData.set(month, { sales: [], total: 0 });
+    }
+    const data = monthlyData.get(month)!;
+    data.sales.push(w.totalSales);
+    data.total += w.totalSales;
+  });
+
+  const result: MonthlySales[] = [];
+
+  monthlyData.forEach((data, month) => {
+    result.push({
+      month,
+      monthName: monthNames[month],
+      avgSales: data.total / data.sales.length,
+      totalSales: data.total,
+      weekCount: data.sales.length,
+    });
+  });
+
+  return result.sort((a, b) => a.month - b.month);
+}
+
+// =============================================================================
 // DATA LOADER (for API routes or server components)
 // =============================================================================
 
@@ -547,6 +730,10 @@ export interface WalmartData {
   weeklyAggregations: WeeklyAggregation[];
   anomalies: Anomaly[];
   volatility: StoreVolatility[];
+  weeklyWithFeatures: WeeklyWithFeatures[];
+  storeTypePerformance: StoreTypePerformance[];
+  topWeeks: TopWeek[];
+  monthlySales: MonthlySales[];
 }
 
 export async function loadAllData(
@@ -566,6 +753,10 @@ export async function loadAllData(
   const weeklyAggregations = aggregateByWeek(train);
   const anomalies = detectAnomalies(train);
   const volatility = calculateStoreVolatility(train, stores);
+  const weeklyWithFeatures = aggregateWeeklyWithFeatures(train, features);
+  const storeTypePerformance = calculateStoreTypePerformance(storeAggregations, stores);
+  const topWeeks = getTopWeeks(weeklyAggregations, 5);
+  const monthlySales = aggregateByMonth(weeklyAggregations);
 
   return {
     train,
@@ -577,5 +768,9 @@ export async function loadAllData(
     weeklyAggregations,
     anomalies,
     volatility,
+    weeklyWithFeatures,
+    storeTypePerformance,
+    topWeeks,
+    monthlySales,
   };
 }
