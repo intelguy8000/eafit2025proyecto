@@ -16,6 +16,7 @@ import {
   AnomalyTrendChart,
   VolatilityChart,
 } from "@/components/charts";
+import { ScalingPlan } from "@/components/ScalingPlan";
 import {
   DollarSign,
   TrendingUp,
@@ -31,6 +32,7 @@ import {
   ShieldAlert,
   TrendingDown,
   Activity,
+  Rocket,
 } from "lucide-react";
 import {
   KPIs,
@@ -156,7 +158,17 @@ export default function Home() {
     { id: "financiero", label: "Financiero", icon: <BarChart3 className="w-4 h-4" /> },
     { id: "operativo", label: "Operativo", icon: <Settings className="w-4 h-4" /> },
     { id: "riesgos", label: "Riesgos", icon: <ShieldAlert className="w-4 h-4" /> },
+    { id: "escalado", label: "Plan de Escalado", icon: <Rocket className="w-4 h-4" /> },
   ];
+
+  // Calculate values for scaling plan
+  const typeAPerf = storeTypePerformance.find((p) => p.type === "A");
+  const typeBCPerf = storeTypePerformance.filter((p) => p.type !== "A");
+  const typeAAvgSales = typeAPerf?.avgSalesPerStore || 0;
+  const typeBCAvgSales =
+    typeBCPerf.length > 0
+      ? typeBCPerf.reduce((sum, p) => sum + p.avgSalesPerStore, 0) / typeBCPerf.length
+      : 0;
 
   return (
     <div className="min-h-screen bg-bg-page">
@@ -580,6 +592,15 @@ export default function Home() {
               </div>
             </div>
           </>
+        )}
+
+        {activeTab === "escalado" && (
+          <ScalingPlan
+            holidayImpact={kpis.holidayImpact.percentageDiff}
+            highRiskStores={highRiskStores}
+            typeAAvgSales={typeAAvgSales}
+            typeBCAvgSales={typeBCAvgSales}
+          />
         )}
       </main>
     </div>
