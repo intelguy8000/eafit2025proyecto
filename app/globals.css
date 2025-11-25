@@ -1,26 +1,97 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Primary Colors */
+  --color-primary: #7B9ACC;
+  --color-secondary: #B8C5D6;
+
+  /* Backgrounds */
+  --color-bg-page: #EEF2F7;
+  --color-bg-card: #FAFBFF;
+
+  /* Scorecard - Blue */
+  --color-scorecard-blue-bg: #D4E5F7;
+  --color-scorecard-blue-text: #2C5282;
+
+  /* Scorecard - Lavender */
+  --color-scorecard-lavender-bg: #E8D5F2;
+  --color-scorecard-lavender-text: #5B3F7A;
+
+  /* Scorecard - Coral (alerts/expenses) */
+  --color-scorecard-coral-bg: #FFE4D6;
+  --color-scorecard-coral-text: #C65D3B;
+
+  /* Scorecard - Green (positive) */
+  --color-scorecard-green-bg: #D5F0E3;
+  --color-scorecard-green-text: #1D6F4A;
+
+  /* Text */
+  --color-text-primary: #1a202c;
+  --color-text-secondary: #4a5568;
+  --color-text-muted: #718096;
+
+  /* Borders */
+  --color-border: #E2E8F0;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
+  --color-bg-page: var(--color-bg-page);
+  --color-bg-card: var(--color-bg-card);
+  --color-scorecard-blue-bg: var(--color-scorecard-blue-bg);
+  --color-scorecard-blue-text: var(--color-scorecard-blue-text);
+  --color-scorecard-lavender-bg: var(--color-scorecard-lavender-bg);
+  --color-scorecard-lavender-text: var(--color-scorecard-lavender-text);
+  --color-scorecard-coral-bg: var(--color-scorecard-coral-bg);
+  --color-scorecard-coral-text: var(--color-scorecard-coral-text);
+  --color-scorecard-green-bg: var(--color-scorecard-green-bg);
+  --color-scorecard-green-text: var(--color-scorecard-green-text);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-border: var(--color-border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --radius-card: 12px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Card styles */
+.card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-card);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--color-border);
+}
+
+/* Scorecard variants */
+.scorecard {
+  border-radius: var(--radius-card);
+  padding: 1.25rem;
+}
+
+.scorecard-blue {
+  background: var(--color-scorecard-blue-bg);
+  color: var(--color-scorecard-blue-text);
+}
+
+.scorecard-lavender {
+  background: var(--color-scorecard-lavender-bg);
+  color: var(--color-scorecard-lavender-text);
+}
+
+.scorecard-coral {
+  background: var(--color-scorecard-coral-bg);
+  color: var(--color-scorecard-coral-text);
+}
+
+.scorecard-green {
+  background: var(--color-scorecard-green-bg);
+  color: var(--color-scorecard-green-text);
 }
