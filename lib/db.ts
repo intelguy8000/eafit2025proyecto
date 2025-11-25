@@ -281,7 +281,7 @@ export async function getStoreVolatility() {
     LEFT JOIN stores st ON s.store = st.store
     GROUP BY s.store, st.type
     ORDER BY coefficient_of_variation DESC
-    LIMIT 45
+    LIMIT 15
   `;
   return result.map((r) => ({
     store: r.store,
@@ -291,6 +291,29 @@ export async function getStoreVolatility() {
     coefficientOfVariation: Number(r.coefficient_of_variation),
     risk: Number(r.coefficient_of_variation) < 30 ? "low" : Number(r.coefficient_of_variation) < 50 ? "medium" : "high",
   }));
+}
+
+// Get risk counts separately (fast query)
+export async function getRiskCounts() {
+  const result = await sql`
+    WITH store_volatility AS (
+      SELECT
+        s.store,
+        STDDEV(s.weekly_sales) / NULLIF(AVG(s.weekly_sales), 0) * 100 as cv
+      FROM sales s
+      GROUP BY s.store
+    )
+    SELECT
+      SUM(CASE WHEN cv >= 50 THEN 1 ELSE 0 END) as high_risk,
+      SUM(CASE WHEN cv >= 30 AND cv < 50 THEN 1 ELSE 0 END) as medium_risk,
+      SUM(CASE WHEN cv < 30 THEN 1 ELSE 0 END) as low_risk
+    FROM store_volatility
+  `;
+  return {
+    highRisk: Number(result[0].high_risk) || 0,
+    mediumRisk: Number(result[0].medium_risk) || 0,
+    lowRisk: Number(result[0].low_risk) || 0,
+  };
 }
 
 // Anomaly detection using standard deviation (faster than IQR with PERCENTILE_CONT)
@@ -322,7 +345,7 @@ export async function getAnomalies() {
     WHERE s.weekly_sales < (st.mean - 2 * st.std_dev)
        OR s.weekly_sales > (st.mean + 2 * st.std_dev)
     ORDER BY deviation DESC
-    LIMIT 50
+    LIMIT 10
   `;
   return result;
 }
@@ -407,7 +430,7 @@ export async function getWeekOverWeekAlerts(threshold: number = -20) {
     WHERE previous_sales > 0
       AND ((current_sales - previous_sales) / NULLIF(previous_sales, 0) * 100) <= ${threshold}
     ORDER BY change_percent
-    LIMIT 30
+    LIMIT 15
   `;
   return result;
 }

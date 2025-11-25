@@ -11,6 +11,7 @@ import {
   getTopWeeks,
   getMonthlySales,
   getStoreVolatility,
+  getRiskCounts,
   getAnomalies,
   getWeeklyWithAnomalies,
   getWeekOverWeekAlerts,
@@ -34,6 +35,7 @@ export async function GET() {
       topWeeks,
       monthlySales,
       volatility,
+      riskCounts,
       anomalies,
       weeklyWithAnomalies,
       weekOverWeekAlerts,
@@ -49,6 +51,7 @@ export async function GET() {
       getTopWeeks(5),
       getMonthlySales(),
       getStoreVolatility(),
+      getRiskCounts(),
       getAnomalies(),
       getWeeklyWithAnomalies(),
       getWeekOverWeekAlerts(-20),
@@ -78,7 +81,7 @@ export async function GET() {
         nonHolidaySales,
         percentageDiff,
       },
-      totalMarkdown: 0, // Not tracked in simplified schema
+      totalMarkdown: 0,
       dateRange: {
         start: kpisRaw.start_date,
         end: kpisRaw.end_date,
@@ -94,7 +97,7 @@ export async function GET() {
       avgSalesPerStore: Number(w.total_sales) / Number(w.store_count),
     }));
 
-    // Format store aggregations
+    // Format store aggregations (limit to 20)
     const formattedStores = storeAggregations.slice(0, 20).map((s) => ({
       store: s.store,
       type: s.type || "A",
@@ -106,7 +109,7 @@ export async function GET() {
       departments: s.departments || [],
     }));
 
-    // Format department aggregations
+    // Format department aggregations (limit to 15)
     const formattedDepts = departmentAggregations.slice(0, 15).map((d) => ({
       dept: d.dept,
       totalSales: Number(d.total_sales),
@@ -144,8 +147,8 @@ export async function GET() {
       rank: i + 1,
     }));
 
-    // Format anomalies
-    const formattedAnomalies = anomalies.slice(0, 50).map((a) => ({
+    // Format anomalies (already limited to 10 in query)
+    const formattedAnomalies = anomalies.map((a) => ({
       store: a.store,
       dept: a.dept,
       date: a.date,
@@ -163,8 +166,8 @@ export async function GET() {
       anomalyCount: w.anomaly_count,
     }));
 
-    // Format week over week alerts
-    const formattedAlerts = weekOverWeekAlerts.slice(0, 30).map((a) => ({
+    // Format week over week alerts (already limited to 15 in query)
+    const formattedAlerts = weekOverWeekAlerts.map((a) => ({
       store: a.store,
       date: a.date,
       previousDate: a.previous_date,
@@ -180,6 +183,7 @@ export async function GET() {
       weeklyAggregations: formattedWeekly,
       anomalies: formattedAnomalies,
       volatility,
+      riskCounts,
       stores,
       weeklyWithFeatures: formattedWeeklyFeatures,
       storeTypePerformance: formattedTypePerf,

@@ -52,12 +52,19 @@ import {
   formatNumber,
 } from "@/lib/data";
 
+interface RiskCounts {
+  highRisk: number;
+  mediumRisk: number;
+  lowRisk: number;
+}
+
 interface DashboardData {
   kpis: KPIs;
   storeAggregations: StoreAggregation[];
   departmentAggregations: DepartmentAggregation[];
   weeklyAggregations: WeeklyAggregation[];
   volatility: StoreVolatility[];
+  riskCounts: RiskCounts;
   weeklyWithFeatures: WeeklyWithFeatures[];
   storeTypePerformance: StoreTypePerformance[];
   topWeeks: TopWeek[];
@@ -146,6 +153,7 @@ export default function Home() {
     departmentAggregations,
     weeklyAggregations,
     volatility,
+    riskCounts,
     weeklyWithFeatures,
     storeTypePerformance,
     topWeeks,
@@ -155,9 +163,9 @@ export default function Home() {
     weeklyWithAnomalies,
   } = data;
 
-  const highRiskStores = volatility.filter((v) => v.risk === "high").length;
-  const mediumRiskStores = volatility.filter((v) => v.risk === "medium").length;
-  const lowRiskStores = volatility.filter((v) => v.risk === "low").length;
+  const highRiskStores = riskCounts.highRisk;
+  const mediumRiskStores = riskCounts.mediumRisk;
+  const lowRiskStores = riskCounts.lowRisk;
   const totalAnomalies = anomalies.length;
 
   const tabs = [
