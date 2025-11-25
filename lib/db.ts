@@ -281,43 +281,31 @@ export async function getStoreVolatility() {
     LEFT JOIN stores st ON s.store = st.store
     GROUP BY s.store, st.type
     ORDER BY coefficient_of_variation DESC
+    LIMIT 45
   `;
   return result.map((r) => ({
     store: r.store,
     type: r.type,
-    mean: r.mean,
-    stdDev: r.std_dev,
-    coefficientOfVariation: r.coefficient_of_variation,
-    risk: r.coefficient_of_variation < 30 ? "low" : r.coefficient_of_variation < 50 ? "medium" : "high",
+    mean: Number(r.mean),
+    stdDev: Number(r.std_dev),
+    coefficientOfVariation: Number(r.coefficient_of_variation),
+    risk: Number(r.coefficient_of_variation) < 30 ? "low" : Number(r.coefficient_of_variation) < 50 ? "medium" : "high",
   }));
 }
 
-// Anomaly detection using IQR method in SQL
+// Anomaly detection using standard deviation (faster than IQR with PERCENTILE_CONT)
 export async function getAnomalies() {
   const result = await sql`
     WITH store_dept_stats AS (
       SELECT
         store,
         dept,
-        PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY weekly_sales) as q1,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY weekly_sales) as median,
-        PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY weekly_sales) as q3,
+        AVG(weekly_sales) as mean,
+        STDDEV(weekly_sales) as std_dev,
         COUNT(*) as cnt
       FROM sales
       GROUP BY store, dept
-      HAVING COUNT(*) >= 10
-    ),
-    bounds AS (
-      SELECT
-        store,
-        dept,
-        q1,
-        median,
-        q3,
-        q3 - q1 as iqr,
-        q1 - 1.5 * (q3 - q1) as lower_bound,
-        q3 + 1.5 * (q3 - q1) as upper_bound
-      FROM store_dept_stats
+      HAVING COUNT(*) >= 10 AND STDDEV(weekly_sales) > 0
     )
     SELECT
       s.store,
@@ -325,76 +313,66 @@ export async function getAnomalies() {
       s.date::text as date,
       s.weekly_sales as sales,
       CASE
-        WHEN s.weekly_sales < b.lower_bound THEN 'low'
-        WHEN s.weekly_sales > b.upper_bound THEN 'high'
+        WHEN s.weekly_sales < (st.mean - 2 * st.std_dev) THEN 'low'
+        ELSE 'high'
       END as type,
-      CASE
-        WHEN s.weekly_sales < b.lower_bound THEN (b.median - s.weekly_sales) / NULLIF(b.iqr, 0)
-        WHEN s.weekly_sales > b.upper_bound THEN (s.weekly_sales - b.median) / NULLIF(b.iqr, 0)
-      END as deviation
+      ABS(s.weekly_sales - st.mean) / st.std_dev as deviation
     FROM sales s
-    JOIN bounds b ON s.store = b.store AND s.dept = b.dept
-    WHERE s.weekly_sales < b.lower_bound OR s.weekly_sales > b.upper_bound
+    JOIN store_dept_stats st ON s.store = st.store AND s.dept = st.dept
+    WHERE s.weekly_sales < (st.mean - 2 * st.std_dev)
+       OR s.weekly_sales > (st.mean + 2 * st.std_dev)
     ORDER BY deviation DESC
-    LIMIT 100
+    LIMIT 50
   `;
   return result;
 }
 
+// Simplified weekly anomalies using pre-computed weekly stats
 export async function getWeeklyWithAnomalies() {
   const result = await sql`
-    WITH anomalies AS (
+    WITH weekly_totals AS (
       SELECT
         date,
-        COUNT(*) as anomaly_count,
-        SUM(CASE WHEN type = 'high' THEN 1 ELSE 0 END) as high_count,
-        SUM(CASE WHEN type = 'low' THEN 1 ELSE 0 END) as low_count
-      FROM (
-        WITH store_dept_stats AS (
-          SELECT
-            store,
-            dept,
-            PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY weekly_sales) as q1,
-            PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY weekly_sales) as q3,
-            COUNT(*) as cnt
-          FROM sales
-          GROUP BY store, dept
-          HAVING COUNT(*) >= 10
-        ),
-        bounds AS (
-          SELECT
-            store,
-            dept,
-            q1 - 1.5 * (q3 - q1) as lower_bound,
-            q3 + 1.5 * (q3 - q1) as upper_bound
-          FROM store_dept_stats
-        )
-        SELECT
-          s.date,
-          CASE
-            WHEN s.weekly_sales < b.lower_bound THEN 'low'
-            WHEN s.weekly_sales > b.upper_bound THEN 'high'
-          END as type
-        FROM sales s
-        JOIN bounds b ON s.store = b.store AND s.dept = b.dept
-        WHERE s.weekly_sales < b.lower_bound OR s.weekly_sales > b.upper_bound
-      ) sub
+        SUM(weekly_sales) as total_sales
+      FROM sales
       GROUP BY date
+    ),
+    weekly_stats AS (
+      SELECT
+        AVG(total_sales) as mean,
+        STDDEV(total_sales) as std_dev
+      FROM weekly_totals
+    ),
+    anomaly_flags AS (
+      SELECT
+        wt.date,
+        wt.total_sales,
+        CASE
+          WHEN wt.total_sales < (ws.mean - 1.5 * ws.std_dev) THEN true
+          WHEN wt.total_sales > (ws.mean + 1.5 * ws.std_dev) THEN true
+          ELSE false
+        END as is_anomaly,
+        CASE
+          WHEN wt.total_sales > (ws.mean + 1.5 * ws.std_dev) THEN 'high'
+          WHEN wt.total_sales < (ws.mean - 1.5 * ws.std_dev) THEN 'low'
+          ELSE NULL
+        END as anomaly_type,
+        CASE
+          WHEN wt.total_sales < (ws.mean - 1.5 * ws.std_dev) OR wt.total_sales > (ws.mean + 1.5 * ws.std_dev)
+          THEN ROUND(ABS(wt.total_sales - ws.mean) / ws.std_dev)::int
+          ELSE 0
+        END as anomaly_count
+      FROM weekly_totals wt
+      CROSS JOIN weekly_stats ws
     )
     SELECT
-      s.date::text as date,
-      SUM(s.weekly_sales) as total_sales,
-      COALESCE(a.anomaly_count, 0) > 5 as is_anomaly,
-      CASE
-        WHEN COALESCE(a.high_count, 0) > COALESCE(a.low_count, 0) THEN 'high'
-        WHEN COALESCE(a.low_count, 0) > 0 THEN 'low'
-        ELSE NULL
-      END as anomaly_type,
-      COALESCE(a.anomaly_count, 0)::int as anomaly_count
-    FROM sales s
-    LEFT JOIN anomalies a ON s.date = a.date
-    GROUP BY s.date, a.anomaly_count, a.high_count, a.low_count
-    ORDER BY s.date
+      date::text as date,
+      total_sales,
+      is_anomaly,
+      anomaly_type,
+      anomaly_count
+    FROM anomaly_flags
+    ORDER BY date
   `;
   return result;
 }
