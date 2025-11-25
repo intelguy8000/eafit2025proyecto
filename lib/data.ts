@@ -123,7 +123,8 @@ export async function loadTrainData(csvContent: string): Promise<TrainRecord[]> 
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const data = results.data.map((row: Record<string, string>) => ({
+        const rows = results.data as Record<string, string>[];
+        const data = rows.map((row) => ({
           Store: parseInt(row.Store, 10),
           Dept: parseInt(row.Dept, 10),
           Date: row.Date,
@@ -132,7 +133,7 @@ export async function loadTrainData(csvContent: string): Promise<TrainRecord[]> 
         }));
         resolve(data);
       },
-      error: (error) => reject(error),
+      error: (error: Error) => reject(error),
     });
   });
 }
@@ -143,7 +144,8 @@ export async function loadFeaturesData(csvContent: string): Promise<FeatureRecor
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const data = results.data.map((row: Record<string, string>) => ({
+        const rows = results.data as Record<string, string>[];
+        const data = rows.map((row) => ({
           Store: parseInt(row.Store, 10),
           Date: row.Date,
           Temperature: parseNumber(row.Temperature),
@@ -159,7 +161,7 @@ export async function loadFeaturesData(csvContent: string): Promise<FeatureRecor
         }));
         resolve(data);
       },
-      error: (error) => reject(error),
+      error: (error: Error) => reject(error),
     });
   });
 }
@@ -170,14 +172,15 @@ export async function loadStoresData(csvContent: string): Promise<StoreRecord[]>
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const data = results.data.map((row: Record<string, string>) => ({
+        const rows = results.data as Record<string, string>[];
+        const data = rows.map((row) => ({
           Store: parseInt(row.Store, 10),
           Type: row.Type as "A" | "B" | "C",
           Size: parseInt(row.Size, 10),
         }));
         resolve(data);
       },
-      error: (error) => reject(error),
+      error: (error: Error) => reject(error),
     });
   });
 }

@@ -16,6 +16,30 @@ interface AnomalyTrendChartProps {
   data: WeeklyWithAnomalyFlag[];
 }
 
+interface CustomShapeProps {
+  cx?: number;
+  cy?: number;
+  payload?: {
+    anomalyType: string | null;
+  };
+}
+
+const CustomDot = (props: CustomShapeProps) => {
+  const { cx, cy, payload } = props;
+  if (!cx || !cy) return null;
+  const color = payload?.anomalyType === "high" ? "#C65D3B" : "#E53E3E";
+  return (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={6}
+      fill={color}
+      stroke="#fff"
+      strokeWidth={2}
+    />
+  );
+};
+
 export function AnomalyTrendChart({ data }: AnomalyTrendChartProps) {
   const chartData = data.map((d) => ({
     date: d.date,
@@ -87,21 +111,7 @@ export function AnomalyTrendChart({ data }: AnomalyTrendChartProps) {
           data={anomalyPoints}
           fill="#C65D3B"
           name="anomalySales"
-          shape={(props: { cx?: number; cy?: number; payload?: { anomalyType: string } }) => {
-            const { cx, cy, payload } = props;
-            if (!cx || !cy) return null;
-            const color = payload?.anomalyType === "high" ? "#C65D3B" : "#E53E3E";
-            return (
-              <circle
-                cx={cx}
-                cy={cy}
-                r={6}
-                fill={color}
-                stroke="#fff"
-                strokeWidth={2}
-              />
-            );
-          }}
+          shape={<CustomDot />}
         />
       </ComposedChart>
     </ResponsiveContainer>

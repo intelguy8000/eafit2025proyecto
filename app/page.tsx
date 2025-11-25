@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Header } from "@/components/Header";
+import { Footer } from "@/components/Footer";
 import { Scorecard } from "@/components/Scorecard";
 import { Tabs } from "@/components/Tabs";
 import {
@@ -94,23 +95,27 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg-page">
+      <div className="min-h-screen bg-bg-page flex flex-col">
         <Header />
-        <div className="flex items-center justify-center h-[calc(100vh-80px)]">
+        <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-4">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-text-muted">Cargando datos de Walmart...</p>
+            <Loader2 className="w-10 h-10 animate-spin text-primary" />
+            <div className="text-center">
+              <p className="text-text-primary font-medium">Cargando datos de Walmart...</p>
+              <p className="text-sm text-text-muted mt-1">Procesando 421K registros</p>
+            </div>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-bg-page">
+      <div className="min-h-screen bg-bg-page flex flex-col">
         <Header />
-        <div className="p-6">
+        <div className="flex-1 p-6">
           <div className="card p-6 border-l-4 border-l-[#C65D3B]">
             <h3 className="text-lg font-semibold text-text-primary mb-2">
               Error al cargar datos
@@ -128,6 +133,7 @@ export default function Home() {
             </div>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -171,12 +177,12 @@ export default function Home() {
       : 0;
 
   return (
-    <div className="min-h-screen bg-bg-page">
+    <div className="min-h-screen bg-bg-page flex flex-col">
       <Header />
 
-      <main className="p-6">
+      <main className="flex-1 p-4 sm:p-6 max-w-[1920px] mx-auto w-full">
         {/* Tabs */}
-        <div className="mb-6">
+        <div className="mb-6 overflow-x-auto">
           <Tabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
         </div>
 
@@ -603,6 +609,8 @@ export default function Home() {
           />
         )}
       </main>
+
+      <Footer />
     </div>
   );
 }
