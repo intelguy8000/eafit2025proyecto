@@ -6,3 +6,5 @@ export { SalesTemperatureChart } from "./SalesTemperatureChart";
 export { SalesFuelChart } from "./SalesFuelChart";
 export { UnemploymentScatterChart } from "./UnemploymentScatterChart";
 export { SeasonalityChart } from "./SeasonalityChart";
+export { AnomalyTrendChart } from "./AnomalyTrendChart";
+export { VolatilityChart } from "./VolatilityChart";

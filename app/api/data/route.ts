@@ -29,6 +29,9 @@ export async function GET() {
       storeTypePerformance: data.storeTypePerformance,
       topWeeks: data.topWeeks,
       monthlySales: data.monthlySales,
+      // Risk data
+      weekOverWeekAlerts: data.weekOverWeekAlerts.slice(0, 30), // Top 30 alerts
+      weeklyWithAnomalies: data.weeklyWithAnomalies,
     });
   } catch (error) {
     console.error("Error loading data:", error);

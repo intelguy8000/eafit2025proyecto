@@ -717,6 +717,116 @@ export function aggregateByMonth(weeklyAggregations: WeeklyAggregation[]): Month
 }
 
 // =============================================================================
+// RISK DETECTION - WEEK OVER WEEK ALERTS
+// =============================================================================
+
+export interface WeekOverWeekAlert {
+  store: number;
+  date: string;
+  previousDate: string;
+  currentSales: number;
+  previousSales: number;
+  changePercent: number;
+}
+
+export interface WeeklyWithAnomalyFlag {
+  date: string;
+  totalSales: number;
+  isAnomaly: boolean;
+  anomalyType: "high" | "low" | null;
+  anomalyCount: number;
+}
+
+export function detectWeekOverWeekDrops(
+  trainData: TrainRecord[],
+  threshold: number = -20
+): WeekOverWeekAlert[] {
+  // Group by store and sort by date
+  const storeData = new Map<number, { date: string; sales: number }[]>();
+
+  trainData.forEach((r) => {
+    if (!storeData.has(r.Store)) {
+      storeData.set(r.Store, []);
+    }
+    // Aggregate sales by store-date
+    const existing = storeData.get(r.Store)!.find((d) => d.date === r.Date);
+    if (existing) {
+      existing.sales += r.Weekly_Sales;
+    } else {
+      storeData.get(r.Store)!.push({ date: r.Date, sales: r.Weekly_Sales });
+    }
+  });
+
+  const alerts: WeekOverWeekAlert[] = [];
+
+  storeData.forEach((data, storeId) => {
+    // Sort by date
+    const sorted = data.sort((a, b) => a.date.localeCompare(b.date));
+
+    for (let i = 1; i < sorted.length; i++) {
+      const prev = sorted[i - 1];
+      const curr = sorted[i];
+
+      if (prev.sales > 0) {
+        const changePercent = ((curr.sales - prev.sales) / prev.sales) * 100;
+
+        if (changePercent <= threshold) {
+          alerts.push({
+            store: storeId,
+            date: curr.date,
+            previousDate: prev.date,
+            currentSales: curr.sales,
+            previousSales: prev.sales,
+            changePercent,
+          });
+        }
+      }
+    }
+  });
+
+  // Sort by change percent (most negative first)
+  return alerts.sort((a, b) => a.changePercent - b.changePercent);
+}
+
+export function aggregateWeeklyWithAnomalies(
+  weeklyAggregations: WeeklyAggregation[],
+  anomalies: Anomaly[]
+): WeeklyWithAnomalyFlag[] {
+  // Count anomalies per date
+  const anomalyCountByDate = new Map<string, { high: number; low: number }>();
+
+  anomalies.forEach((a) => {
+    if (!anomalyCountByDate.has(a.date)) {
+      anomalyCountByDate.set(a.date, { high: 0, low: 0 });
+    }
+    const counts = anomalyCountByDate.get(a.date)!;
+    if (a.type === "high") {
+      counts.high++;
+    } else {
+      counts.low++;
+    }
+  });
+
+  return weeklyAggregations.map((w) => {
+    const counts = anomalyCountByDate.get(w.date);
+    const totalAnomalies = counts ? counts.high + counts.low : 0;
+    let anomalyType: "high" | "low" | null = null;
+
+    if (counts) {
+      anomalyType = counts.high > counts.low ? "high" : "low";
+    }
+
+    return {
+      date: w.date,
+      totalSales: w.totalSales,
+      isAnomaly: totalAnomalies > 5, // Flag if more than 5 anomalies in that week
+      anomalyType,
+      anomalyCount: totalAnomalies,
+    };
+  });
+}
+
+// =============================================================================
 // DATA LOADER (for API routes or server components)
 // =============================================================================
 
@@ -734,6 +844,8 @@ export interface WalmartData {
   storeTypePerformance: StoreTypePerformance[];
   topWeeks: TopWeek[];
   monthlySales: MonthlySales[];
+  weekOverWeekAlerts: WeekOverWeekAlert[];
+  weeklyWithAnomalies: WeeklyWithAnomalyFlag[];
 }
 
 export async function loadAllData(
@@ -757,6 +869,8 @@ export async function loadAllData(
   const storeTypePerformance = calculateStoreTypePerformance(storeAggregations, stores);
   const topWeeks = getTopWeeks(weeklyAggregations, 5);
   const monthlySales = aggregateByMonth(weeklyAggregations);
+  const weekOverWeekAlerts = detectWeekOverWeekDrops(train, -20);
+  const weeklyWithAnomalies = aggregateWeeklyWithAnomalies(weeklyAggregations, anomalies);
 
   return {
     train,
@@ -772,5 +886,7 @@ export async function loadAllData(
     storeTypePerformance,
     topWeeks,
     monthlySales,
+    weekOverWeekAlerts,
+    weeklyWithAnomalies,
   };
 }

@@ -13,6 +13,8 @@ import {
   SalesFuelChart,
   UnemploymentScatterChart,
   SeasonalityChart,
+  AnomalyTrendChart,
+  VolatilityChart,
 } from "@/components/charts";
 import {
   DollarSign,
@@ -26,6 +28,9 @@ import {
   Fuel,
   Store,
   Trophy,
+  ShieldAlert,
+  TrendingDown,
+  Activity,
 } from "lucide-react";
 import {
   KPIs,
@@ -37,6 +42,9 @@ import {
   StoreTypePerformance,
   TopWeek,
   MonthlySales,
+  Anomaly,
+  WeekOverWeekAlert,
+  WeeklyWithAnomalyFlag,
   formatCurrency,
   formatNumber,
 } from "@/lib/data";
@@ -51,6 +59,9 @@ interface DashboardData {
   storeTypePerformance: StoreTypePerformance[];
   topWeeks: TopWeek[];
   monthlySales: MonthlySales[];
+  anomalies: Anomaly[];
+  weekOverWeekAlerts: WeekOverWeekAlert[];
+  weeklyWithAnomalies: WeeklyWithAnomalyFlag[];
 }
 
 export default function Home() {
@@ -131,13 +142,20 @@ export default function Home() {
     storeTypePerformance,
     topWeeks,
     monthlySales,
+    anomalies,
+    weekOverWeekAlerts,
+    weeklyWithAnomalies,
   } = data;
 
   const highRiskStores = volatility.filter((v) => v.risk === "high").length;
+  const mediumRiskStores = volatility.filter((v) => v.risk === "medium").length;
+  const lowRiskStores = volatility.filter((v) => v.risk === "low").length;
+  const totalAnomalies = anomalies.length;
 
   const tabs = [
     { id: "financiero", label: "Financiero", icon: <BarChart3 className="w-4 h-4" /> },
     { id: "operativo", label: "Operativo", icon: <Settings className="w-4 h-4" /> },
+    { id: "riesgos", label: "Riesgos", icon: <ShieldAlert className="w-4 h-4" /> },
   ];
 
   return (
@@ -411,6 +429,154 @@ export default function Home() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === "riesgos" && (
+          <>
+            {/* Risk Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <Scorecard
+                title="Alto Riesgo"
+                value={highRiskStores}
+                subtitle="Tiendas con volatilidad >50%"
+                icon={AlertTriangle}
+                variant="coral"
+              />
+              <Scorecard
+                title="Riesgo Medio"
+                value={mediumRiskStores}
+                subtitle="Volatilidad 30-50%"
+                icon={Activity}
+                variant="lavender"
+              />
+              <Scorecard
+                title="Bajo Riesgo"
+                value={lowRiskStores}
+                subtitle="Volatilidad <30%"
+                icon={ShieldAlert}
+                variant="green"
+              />
+              <Scorecard
+                title="Anomalías Detectadas"
+                value={totalAnomalies}
+                subtitle="Registros fuera del IQR"
+                icon={TrendingDown}
+                variant="blue"
+              />
+            </div>
+
+            {/* Anomaly Trend Chart */}
+            <div className="card p-6 mb-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Activity className="w-5 h-5 text-scorecard-coral-text" />
+                <h3 className="text-lg font-semibold text-text-primary">
+                  Tendencia con Anomalías Marcadas
+                </h3>
+              </div>
+              <p className="text-xs text-text-muted mb-4">
+                Los puntos rojos indican semanas con más de 5 anomalías detectadas (método IQR)
+              </p>
+              <AnomalyTrendChart data={weeklyWithAnomalies} />
+            </div>
+
+            {/* Volatility Chart and Top Anomalies Table */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">
+                  Top 15 Tiendas Más Volátiles
+                </h3>
+                <p className="text-xs text-text-muted mb-4">
+                  Coeficiente de variación (CV): rojo &gt;50%, amarillo 30-50%, verde &lt;30%
+                </p>
+                <VolatilityChart data={volatility} />
+              </div>
+
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold text-text-primary mb-4">
+                  Top 10 Registros Anómalos
+                </h3>
+                <p className="text-xs text-text-muted mb-4">
+                  Ventas fuera del rango intercuartil (Q1-1.5*IQR a Q3+1.5*IQR)
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border">
+                        <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Fecha</th>
+                        <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Tienda</th>
+                        <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Dept</th>
+                        <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Ventas</th>
+                        <th className="text-left py-2 px-3 text-xs font-medium text-text-muted">Desv.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {anomalies.slice(0, 10).map((anomaly, idx) => (
+                        <tr key={`${anomaly.store}-${anomaly.dept}-${anomaly.date}-${idx}`} className="border-b border-border/50">
+                          <td className="py-2 px-3 text-xs text-text-primary">{anomaly.date}</td>
+                          <td className="py-2 px-3 text-xs text-text-primary">T{anomaly.store}</td>
+                          <td className="py-2 px-3 text-xs text-text-muted">{anomaly.dept}</td>
+                          <td className="py-2 px-3 text-xs text-text-primary">
+                            {formatCurrency(anomaly.sales)}
+                          </td>
+                          <td className="py-2 px-3">
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded ${
+                                anomaly.type === "high"
+                                  ? "bg-scorecard-green-bg text-scorecard-green-text"
+                                  : "bg-scorecard-coral-bg text-scorecard-coral-text"
+                              }`}
+                            >
+                              {anomaly.type === "high" ? "+" : "-"}{anomaly.deviation.toFixed(1)} IQR
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* Week Over Week Alerts */}
+            <div className="card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingDown className="w-5 h-5 text-scorecard-coral-text" />
+                <h3 className="text-lg font-semibold text-text-primary">
+                  Alertas de Caídas Semanales (&gt;20%)
+                </h3>
+              </div>
+              <p className="text-xs text-text-muted mb-4">
+                Tiendas con caída de ventas mayor al 20% semana a semana
+              </p>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {weekOverWeekAlerts.slice(0, 15).map((alert, idx) => (
+                  <div
+                    key={`${alert.store}-${alert.date}-${idx}`}
+                    className="flex items-center gap-3 p-3 bg-scorecard-coral-bg/30 rounded-lg"
+                  >
+                    <AlertTriangle className="w-4 h-4 text-scorecard-coral-text flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-text-primary">
+                        <span className="font-medium">Tienda {alert.store}</span> cayó{" "}
+                        <span className="font-bold text-scorecard-coral-text">
+                          {alert.changePercent.toFixed(1)}%
+                        </span>{" "}
+                        en semana {alert.date}
+                      </p>
+                      <p className="text-xs text-text-muted">
+                        {formatCurrency(alert.previousSales)} → {formatCurrency(alert.currentSales)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {weekOverWeekAlerts.length === 0 && (
+                  <p className="text-sm text-text-muted text-center py-4">
+                    No hay alertas de caídas mayores al 20%
+                  </p>
+                )}
               </div>
             </div>
           </>
