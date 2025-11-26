@@ -296,23 +296,38 @@ export function PredictionSection({ forecast, historicalData }: PredictionSectio
               <p className="font-medium text-text-primary mb-2">📈 Métricas de Validación</p>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div className="bg-white/50 rounded p-2 text-center">
-                  <p className="text-text-muted">MAE</p>
+                  <p className="text-text-muted font-medium">MAE</p>
                   <p className="font-semibold text-text-primary">
                     ${(metrics.mae / 1_000_000).toFixed(1)}M
                   </p>
                 </div>
                 <div className="bg-white/50 rounded p-2 text-center">
-                  <p className="text-text-muted">MAPE</p>
+                  <p className="text-text-muted font-medium">MAPE</p>
                   <p className="font-semibold text-text-primary">
                     {metrics.mape.toFixed(1)}%
                   </p>
                 </div>
                 <div className="bg-white/50 rounded p-2 text-center">
-                  <p className="text-text-muted">R²</p>
+                  <p className="text-text-muted font-medium">R²</p>
                   <p className="font-semibold text-text-primary">
                     {metrics.r2.toFixed(3)}
                   </p>
                 </div>
+              </div>
+              {/* Metric explanations */}
+              <div className="mt-3 space-y-2 text-xs text-text-muted bg-white/30 rounded p-3">
+                <p>
+                  <span className="font-medium text-text-secondary">MAE</span> (Error Absoluto Medio):
+                  Promedio de las diferencias absolutas entre predicción y valor real. Menor es mejor.
+                </p>
+                <p>
+                  <span className="font-medium text-text-secondary">MAPE</span> (Error Porcentual Absoluto Medio):
+                  Error promedio como porcentaje. Un MAPE &lt;5% indica alta precisión.
+                </p>
+                <p>
+                  <span className="font-medium text-text-secondary">R²</span> (Coeficiente de Determinación):
+                  Qué tan bien el modelo explica la variabilidad. 1.0 = perfecto, 0 = no explica nada.
+                </p>
               </div>
             </div>
           </div>
