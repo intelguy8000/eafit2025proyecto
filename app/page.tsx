@@ -357,9 +357,9 @@ export default function Home() {
                       <span className="text-sm text-text-muted">Volatilidad</span>
                       <span
                         className={`text-sm font-medium ${
-                          perf.avgVolatility > 50
+                          perf.avgVolatility > 25
                             ? "text-scorecard-coral-text"
-                            : perf.avgVolatility > 30
+                            : perf.avgVolatility > 15
                             ? "text-scorecard-lavender-text"
                             : "text-scorecard-green-text"
                         }`}

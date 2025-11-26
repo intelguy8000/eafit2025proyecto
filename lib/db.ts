@@ -208,22 +208,33 @@ export async function getWeeklyWithFeatures() {
 }
 
 export async function getStoreTypePerformance() {
+  // Calculate volatility at store level (aggregated weekly sales per store)
+  // Same methodology as getStoreVolatility and getRiskCounts
   const result = await sql`
+    WITH store_weekly AS (
+      SELECT
+        store,
+        date,
+        SUM(weekly_sales) as total_weekly_sales
+      FROM sales
+      GROUP BY store, date
+    ),
+    store_volatility AS (
+      SELECT
+        store,
+        STDDEV(total_weekly_sales) / NULLIF(AVG(total_weekly_sales), 0) * 100 as volatility
+      FROM store_weekly
+      GROUP BY store
+    )
     SELECT
       st.type,
       COUNT(DISTINCT s.store) as store_count,
       SUM(s.weekly_sales) as total_sales,
       AVG(st.size) as avg_size,
-      AVG(sub.volatility) as avg_volatility
+      AVG(sv.volatility) as avg_volatility
     FROM sales s
     JOIN stores st ON s.store = st.store
-    LEFT JOIN (
-      SELECT
-        store,
-        STDDEV(weekly_sales) / NULLIF(AVG(weekly_sales), 0) * 100 as volatility
-      FROM sales
-      GROUP BY store
-    ) sub ON s.store = sub.store
+    LEFT JOIN store_volatility sv ON s.store = sv.store
     GROUP BY st.type
     ORDER BY total_sales DESC
   `;
