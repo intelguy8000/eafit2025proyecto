@@ -83,14 +83,32 @@ export default function Home() {
   useEffect(() => {
     async function loadData() {
       try {
-        const response = await fetch("/api/data");
+        const response = await fetch("/api/data", {
+          cache: "no-store",
+        });
+
+        const text = await response.text();
+
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to load data");
+          let errorMsg = "Failed to load data";
+          try {
+            const errorData = JSON.parse(text);
+            errorMsg = errorData.error || errorMsg;
+          } catch {
+            errorMsg = text || errorMsg;
+          }
+          throw new Error(errorMsg);
         }
-        const dashboardData = await response.json();
+
+        const dashboardData = JSON.parse(text);
+
+        if (dashboardData.error) {
+          throw new Error(dashboardData.error);
+        }
+
         setData(dashboardData);
       } catch (err) {
+        console.error("Error loading data:", err);
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
         setLoading(false);
