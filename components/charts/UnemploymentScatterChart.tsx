@@ -35,7 +35,7 @@ export function UnemploymentScatterChart({ data }: UnemploymentScatterChartProps
           type="number"
           name="Desempleo"
           tick={{ fontSize: 10, fill: "#718096" }}
-          tickFormatter={(value) => `${value}%`}
+          tickFormatter={(value) => `${Number(value).toFixed(1)}%`}
           domain={["dataMin - 0.5", "dataMax + 0.5"]}
         />
         <YAxis

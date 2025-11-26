@@ -17,9 +17,9 @@ interface TopStoresChartProps {
 }
 
 const typeColors: Record<string, string> = {
-  A: "#7B9ACC",
-  B: "#B8C5D6",
-  C: "#E8D5F2",
+  A: "#5B7FC2", // Azul más saturado para Tipo A
+  B: "#9BAFCA", // Gris azulado para Tipo B
+  C: "#C4A8D4", // Lavanda para Tipo C
 };
 
 export function TopStoresChart({ data }: TopStoresChartProps) {
@@ -62,7 +62,7 @@ export function TopStoresChart({ data }: TopStoresChartProps) {
         />
         <Bar dataKey="sales" radius={[0, 4, 4, 0]}>
           {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={typeColors[entry.type]} />
+            <Cell key={`cell-${index}`} fill={typeColors[entry.type] || "#7B9ACC"} />
           ))}
         </Bar>
       </BarChart>

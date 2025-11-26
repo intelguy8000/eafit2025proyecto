@@ -16,20 +16,21 @@ interface SeasonalityChartProps {
   data: MonthlySales[];
 }
 
-const MONTH_COLORS = [
-  "#D4E5F7", // Jan - winter
-  "#D4E5F7", // Feb - winter
-  "#D5F0E3", // Mar - spring
-  "#D5F0E3", // Apr - spring
-  "#D5F0E3", // May - spring
-  "#FFE4D6", // Jun - summer
-  "#FFE4D6", // Jul - summer
-  "#FFE4D6", // Aug - summer
-  "#E8D5F2", // Sep - fall
-  "#E8D5F2", // Oct - fall
-  "#E8D5F2", // Nov - fall
-  "#D4E5F7", // Dec - winter
-];
+// Index 1-12 for months (Jan=1, Dec=12)
+const MONTH_COLORS: Record<number, string> = {
+  1: "#D4E5F7",  // Jan - winter (light blue)
+  2: "#D4E5F7",  // Feb - winter
+  3: "#D5F0E3",  // Mar - spring (light green)
+  4: "#D5F0E3",  // Apr - spring
+  5: "#D5F0E3",  // May - spring
+  6: "#FFE4D6",  // Jun - summer (light coral)
+  7: "#FFE4D6",  // Jul - summer
+  8: "#FFE4D6",  // Aug - summer
+  9: "#E8D5F2",  // Sep - fall (light lavender)
+  10: "#E8D5F2", // Oct - fall
+  11: "#E8D5F2", // Nov - fall
+  12: "#A8C5E2", // Dec - winter (darker blue for holiday season)
+};
 
 export function SeasonalityChart({ data }: SeasonalityChartProps) {
   const chartData = data.map((d) => ({
@@ -59,7 +60,7 @@ export function SeasonalityChart({ data }: SeasonalityChartProps) {
         />
         <Bar dataKey="avgSales" radius={[4, 4, 0, 0]}>
           {chartData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={MONTH_COLORS[entry.monthIndex]} />
+            <Cell key={`cell-${index}`} fill={MONTH_COLORS[entry.monthIndex] || "#D4E5F7"} />
           ))}
         </Bar>
       </BarChart>

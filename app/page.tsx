@@ -628,6 +628,7 @@ export default function Home() {
             highRiskStores={highRiskStores}
             typeAAvgSales={typeAAvgSales}
             typeBCAvgSales={typeBCAvgSales}
+            totalSales={kpis.totalSales}
           />
         )}
       </main>

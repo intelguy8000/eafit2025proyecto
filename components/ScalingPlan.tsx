@@ -24,6 +24,7 @@ interface ScalingPlanProps {
   highRiskStores: number;
   typeAAvgSales: number;
   typeBCAvgSales: number;
+  totalSales: number;
 }
 
 interface OpportunityCard {
@@ -42,6 +43,7 @@ export function ScalingPlan({
   highRiskStores,
   typeAAvgSales,
   typeBCAvgSales,
+  totalSales,
 }: ScalingPlanProps) {
   const typeAMultiplier = typeBCAvgSales > 0 ? (typeAAvgSales / typeBCAvgSales).toFixed(1) : "2";
 
@@ -183,7 +185,7 @@ export function ScalingPlan({
               Plan de Escalado: De Datos a EBITDA
             </h2>
             <p className="text-sm text-text-secondary">
-              Oportunidades identificadas a partir del análisis de {formatCurrency(0)} en ventas históricas.
+              Oportunidades identificadas a partir del análisis de {formatCurrency(totalSales)} en ventas históricas.
               Cada iniciativa tiene un camino claro hacia impacto financiero medible.
             </p>
           </div>
