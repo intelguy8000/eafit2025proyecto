@@ -356,28 +356,6 @@ export function ScalingPlan({
         </div>
       </div>
 
-      {/* Call to Action */}
-      <div className="card p-6 bg-gradient-to-r from-primary/10 to-scorecard-lavender-bg/30">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h4 className="font-semibold text-text-primary mb-1">
-              ¿Listo para implementar?
-            </h4>
-            <p className="text-sm text-text-secondary">
-              Este POC de 40 días demuestra el valor. El siguiente paso es productivizar
-              el monitoreo y comenzar con las iniciativas de mayor impacto.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-              Agendar Revisión
-            </button>
-            <button className="px-4 py-2 bg-white border border-border text-text-primary rounded-lg text-sm font-medium hover:bg-secondary/20 transition-colors">
-              Exportar Informe
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
