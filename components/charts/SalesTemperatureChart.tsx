@@ -64,8 +64,8 @@ export function SalesTemperatureChart({ data }: SalesTemperatureChartProps) {
             fontSize: "12px",
           }}
           formatter={(value: number, name: string) => [
-            name === "sales" ? `$${value.toFixed(2)}M` : `${value.toFixed(1)}°F`,
-            name === "sales" ? "Ventas" : "Temperatura",
+            name === "Ventas" ? `$${value.toFixed(2)}M` : `${value.toFixed(1)}°F`,
+            name,
           ]}
         />
         <Legend wrapperStyle={{ fontSize: "11px" }} />
