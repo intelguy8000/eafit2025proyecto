@@ -65,8 +65,8 @@ export function SalesFuelChart({ data }: SalesFuelChartProps) {
             fontSize: "12px",
           }}
           formatter={(value: number, name: string) => [
-            name === "sales" ? `$${value.toFixed(2)}M` : `$${value.toFixed(3)}/gal`,
-            name === "sales" ? "Ventas" : "Gasolina",
+            name === "Ventas" ? `$${value.toFixed(2)}M` : `$${value.toFixed(3)}/gal`,
+            name,
           ]}
         />
         <Legend wrapperStyle={{ fontSize: "11px" }} />
