@@ -16,6 +16,7 @@ import {
   getWeeklyWithAnomalies,
   getWeekOverWeekAlerts,
 } from "@/lib/db";
+import { generateForecast, WeeklyDataPoint } from "@/lib/prediction";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 3600; // Revalidate every hour
@@ -176,6 +177,14 @@ export async function GET() {
       changePercent: Number(a.change_percent),
     }));
 
+    // Generate forecast from weekly aggregations
+    const forecastInput: WeeklyDataPoint[] = formattedWeekly.map((w) => ({
+      date: w.date,
+      totalSales: w.totalSales,
+      isHoliday: w.isHoliday,
+    }));
+    const forecast = generateForecast(forecastInput, 12);
+
     return NextResponse.json({
       kpis,
       storeAggregations: formattedStores,
@@ -191,6 +200,7 @@ export async function GET() {
       monthlySales,
       weekOverWeekAlerts: formattedAlerts,
       weeklyWithAnomalies: formattedWeeklyAnomalies,
+      forecast,
     });
   } catch (error) {
     console.error("Error loading data:", error);

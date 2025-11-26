@@ -18,6 +18,7 @@ import {
   VolatilityChart,
 } from "@/components/charts";
 import { ScalingPlan } from "@/components/ScalingPlan";
+import { PredictionSection } from "@/components/PredictionSection";
 import {
   DollarSign,
   TrendingUp,
@@ -34,6 +35,7 @@ import {
   TrendingDown,
   Activity,
   Rocket,
+  Brain,
 } from "lucide-react";
 import {
   KPIs,
@@ -51,6 +53,7 @@ import {
   formatCurrency,
   formatNumber,
 } from "@/lib/data";
+import { ForecastOutput } from "@/lib/prediction";
 
 interface RiskCounts {
   highRisk: number;
@@ -72,6 +75,7 @@ interface DashboardData {
   anomalies: Anomaly[];
   weekOverWeekAlerts: WeekOverWeekAlert[];
   weeklyWithAnomalies: WeeklyWithAnomalyFlag[];
+  forecast: ForecastOutput;
 }
 
 export default function Home() {
@@ -175,6 +179,7 @@ export default function Home() {
     anomalies,
     weekOverWeekAlerts,
     weeklyWithAnomalies,
+    forecast,
   } = data;
 
   const highRiskStores = riskCounts.highRisk;
@@ -186,6 +191,7 @@ export default function Home() {
     { id: "financiero", label: "Financiero", icon: <BarChart3 className="w-4 h-4" /> },
     { id: "operativo", label: "Operativo", icon: <Settings className="w-4 h-4" /> },
     { id: "riesgos", label: "Riesgos", icon: <ShieldAlert className="w-4 h-4" /> },
+    { id: "prediccion", label: "Predicción", icon: <Brain className="w-4 h-4" /> },
     { id: "escalado", label: "Plan de Escalado", icon: <Rocket className="w-4 h-4" /> },
   ];
 
@@ -620,6 +626,17 @@ export default function Home() {
               </div>
             </div>
           </>
+        )}
+
+        {activeTab === "prediccion" && (
+          <PredictionSection
+            forecast={forecast}
+            historicalData={weeklyAggregations.map((w) => ({
+              date: w.date,
+              totalSales: w.totalSales,
+              isHoliday: w.isHoliday,
+            }))}
+          />
         )}
 
         {activeTab === "escalado" && (

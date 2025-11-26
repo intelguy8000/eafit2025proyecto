@@ -8,3 +8,4 @@ export { UnemploymentScatterChart } from "./UnemploymentScatterChart";
 export { SeasonalityChart } from "./SeasonalityChart";
 export { AnomalyTrendChart } from "./AnomalyTrendChart";
 export { VolatilityChart } from "./VolatilityChart";
+export { ForecastChart } from "./ForecastChart";
