@@ -128,16 +128,12 @@ export default function Home() {
               Error al cargar datos
             </h3>
             <p className="text-sm text-text-secondary mb-4">{error}</p>
-            <div className="bg-scorecard-coral-bg/50 p-4 rounded-lg">
-              <p className="text-sm text-scorecard-coral-text mb-2">
-                Asegúrate de tener los archivos CSV en la carpeta <code className="bg-white/50 px-2 py-1 rounded">data/</code>:
-              </p>
-              <ul className="text-sm text-scorecard-coral-text space-y-1">
-                <li>• train.csv</li>
-                <li>• features.csv</li>
-                <li>• stores.csv</li>
-              </ul>
-            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Reintentar
+            </button>
           </div>
         </div>
         <Footer />
