@@ -42,7 +42,7 @@ export function Scorecard({
           )}
           {trend && (
             <p className={`text-xs mt-2 font-medium ${trend.isPositive ? "text-green-600" : "text-red-500"}`}>
-              {trend.isPositive ? "+" : ""}{trend.value}% vs periodo anterior
+              {trend.isPositive ? "+" : ""}{trend.value.toFixed(1)}% vs periodo anterior
             </p>
           )}
         </div>
