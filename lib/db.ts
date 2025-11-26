@@ -270,16 +270,28 @@ export async function getMonthlySales() {
 }
 
 export async function getStoreVolatility() {
+  // Calculate volatility at store level (aggregated weekly sales per store)
   const result = await sql`
-    SELECT
-      s.store,
-      st.type,
-      AVG(s.weekly_sales) as mean,
-      STDDEV(s.weekly_sales) as std_dev,
-      STDDEV(s.weekly_sales) / NULLIF(AVG(s.weekly_sales), 0) * 100 as coefficient_of_variation
-    FROM sales s
-    LEFT JOIN stores st ON s.store = st.store
-    GROUP BY s.store, st.type
+    WITH store_weekly AS (
+      SELECT
+        store,
+        date,
+        SUM(weekly_sales) as total_weekly_sales
+      FROM sales
+      GROUP BY store, date
+    ),
+    store_stats AS (
+      SELECT
+        sw.store,
+        st.type,
+        AVG(sw.total_weekly_sales) as mean,
+        STDDEV(sw.total_weekly_sales) as std_dev,
+        STDDEV(sw.total_weekly_sales) / NULLIF(AVG(sw.total_weekly_sales), 0) * 100 as coefficient_of_variation
+      FROM store_weekly sw
+      LEFT JOIN stores st ON sw.store = st.store
+      GROUP BY sw.store, st.type
+    )
+    SELECT * FROM store_stats
     ORDER BY coefficient_of_variation DESC
     LIMIT 15
   `;
@@ -289,24 +301,33 @@ export async function getStoreVolatility() {
     mean: Number(r.mean),
     stdDev: Number(r.std_dev),
     coefficientOfVariation: Number(r.coefficient_of_variation),
-    risk: Number(r.coefficient_of_variation) < 30 ? "low" : Number(r.coefficient_of_variation) < 50 ? "medium" : "high",
+    risk: Number(r.coefficient_of_variation) < 15 ? "low" : Number(r.coefficient_of_variation) < 25 ? "medium" : "high",
   }));
 }
 
 // Get risk counts separately (fast query)
+// Uses aggregated weekly sales per store for proper volatility calculation
 export async function getRiskCounts() {
   const result = await sql`
-    WITH store_volatility AS (
+    WITH store_weekly AS (
       SELECT
-        s.store,
-        STDDEV(s.weekly_sales) / NULLIF(AVG(s.weekly_sales), 0) * 100 as cv
-      FROM sales s
-      GROUP BY s.store
+        store,
+        date,
+        SUM(weekly_sales) as total_weekly_sales
+      FROM sales
+      GROUP BY store, date
+    ),
+    store_volatility AS (
+      SELECT
+        store,
+        STDDEV(total_weekly_sales) / NULLIF(AVG(total_weekly_sales), 0) * 100 as cv
+      FROM store_weekly
+      GROUP BY store
     )
     SELECT
-      SUM(CASE WHEN cv >= 50 THEN 1 ELSE 0 END) as high_risk,
-      SUM(CASE WHEN cv >= 30 AND cv < 50 THEN 1 ELSE 0 END) as medium_risk,
-      SUM(CASE WHEN cv < 30 THEN 1 ELSE 0 END) as low_risk
+      SUM(CASE WHEN cv >= 25 THEN 1 ELSE 0 END) as high_risk,
+      SUM(CASE WHEN cv >= 15 AND cv < 25 THEN 1 ELSE 0 END) as medium_risk,
+      SUM(CASE WHEN cv < 15 THEN 1 ELSE 0 END) as low_risk
     FROM store_volatility
   `;
   return {
